@@ -15,7 +15,8 @@ struct DumpView: View {
     @State private var summary: Summary?
     @State private var errorText: String?
     @State private var showSettings = false
-    @State private var hasKey = KeychainStore.apiKey != nil
+    @State private var showGuide = false
+    @State private var hasKey = AIProvider.current.apiKey != nil
     @FocusState private var editorFocused: Bool
 
     private var trimmedText: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -55,6 +56,15 @@ struct DumpView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(Theme.background.ignoresSafeArea())
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showGuide = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                            .foregroundStyle(Theme.muted)
+                    }
+                    .accessibilityLabel("Как подключить нейросеть")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showSettings = true
@@ -65,8 +75,11 @@ struct DumpView: View {
                     .accessibilityLabel("Настройки")
                 }
             }
-            .sheet(isPresented: $showSettings, onDismiss: { hasKey = KeychainStore.apiKey != nil }) {
+            .sheet(isPresented: $showSettings, onDismiss: refreshKeyState) {
                 SettingsView()
+            }
+            .sheet(isPresented: $showGuide, onDismiss: refreshKeyState) {
+                GuideView()
             }
             .alert("Что-то пошло не так", isPresented: Binding(
                 get: { errorText != nil },
@@ -100,13 +113,13 @@ struct DumpView: View {
 
     private var keyHint: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Осталось подключить Claude", systemImage: "key")
+            Label("Осталось подключить нейросеть", systemImage: "sparkles")
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
-            Text("Без ключа я смогу слушать, но не смогу раскладывать мысли по полочкам.")
+            Text("Это бесплатно и займёт пару минут. Без неё я смогу слушать, но не смогу раскладывать мысли по полочкам.")
                 .font(.subheadline)
                 .foregroundStyle(Theme.muted)
-            Button("Добавить ключ") { showSettings = true }
+            Button("Как подключить") { showGuide = true }
                 .font(.subheadline.weight(.semibold))
         }
         .card()
@@ -191,6 +204,10 @@ struct DumpView: View {
 
     // MARK: - Действия
 
+    private func refreshKeyState() {
+        hasKey = AIProvider.current.apiKey != nil
+    }
+
     private func toggleRecording() async {
         editorFocused = false
         if !speech.isRecording {
@@ -212,14 +229,14 @@ struct DumpView: View {
         defer { isSorting = false }
 
         do {
-            let sorted = try await ClaudeService().sort(input)
+            let sorted = try await ThoughtSorter().sort(input)
             save(sorted, from: input)
             withAnimation(.spring(duration: 0.5)) {
                 summary = Summary(sorted)
                 text = ""
             }
-        } catch ClaudeService.ServiceError.noKey {
-            showSettings = true
+        } catch AIError.noKey {
+            showGuide = true
         } catch {
             errorText = error.localizedDescription
         }
@@ -240,7 +257,7 @@ struct DumpView: View {
                 let item = OffloadItem(
                     title: entry.title,
                     category: category,
-                    dueDate: ClaudeService.parseDate(entry.date)
+                    dueDate: ThoughtSorter.parseDate(entry.date)
                 )
                 item.dump = dump
                 context.insert(item)

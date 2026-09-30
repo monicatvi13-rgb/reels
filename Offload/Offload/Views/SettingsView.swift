@@ -1,31 +1,48 @@
 import SwiftUI
 
-/// Настройки: здесь хранится ключ Claude API.
+/// Настройки: выбор нейросети и её ключ.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
+    @State private var provider: AIProvider = .current
     @State private var key = ""
-    @State private var hasSavedKey = KeychainStore.read() != nil
+    @State private var hasSavedKey = AIProvider.current.savedKey != nil
     @State private var justSaved = false
+    @State private var showGuide = false
+
+    private var trimmedKey: String { key.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    SecureField("sk-ant-…", text: $key)
+                    Picker("Нейросеть", selection: $provider) {
+                        ForEach(AIProvider.allCases) { provider in
+                            Text(provider.title).tag(provider)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                } footer: {
+                    Text(provider.tagline)
+                }
+
+                Section {
+                    SecureField(provider.keyPlaceholder, text: $key)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .font(.body.monospaced())
 
                     Button("Сохранить ключ") {
-                        KeychainStore.save(key.trimmingCharacters(in: .whitespacesAndNewlines))
+                        provider.saveKey(trimmedKey)
                         key = ""
                         hasSavedKey = true
                         justSaved = true
                     }
-                    .disabled(key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(trimmedKey.isEmpty)
                 } header: {
-                    Text("Ключ Claude API")
+                    Text(provider.keyName)
                 } footer: {
                     if justSaved {
                         Text("Ключ на месте — можно выгружать мысли.")
@@ -33,20 +50,22 @@ struct SettingsView: View {
                     } else if hasSavedKey {
                         Text("Ключ уже сохранён. Вставь новый, если хочешь заменить.")
                     } else {
-                        Text("Ключ хранится только в защищённом хранилище этого iPhone и никуда больше не отправляется, кроме Claude.")
+                        Text("Ключ хранится только в защищённом хранилище этого iPhone.")
                     }
                 }
 
                 Section {
-                    Link(destination: URL(string: "https://console.anthropic.com/settings/keys")!) {
-                        Label("Где взять ключ", systemImage: "arrow.up.right.square")
+                    Button {
+                        showGuide = true
+                    } label: {
+                        Label("Как получить ключ", systemImage: "questionmark.circle")
                     }
                 }
 
                 if hasSavedKey {
                     Section {
-                        Button("Удалить ключ", role: .destructive) {
-                            KeychainStore.delete()
+                        Button("Удалить ключ \(provider.title)", role: .destructive) {
+                            provider.deleteKey()
                             hasSavedKey = false
                             justSaved = false
                         }
@@ -55,12 +74,21 @@ struct SettingsView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Настройки")
+            .navigationTitle("Нейросеть")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Готово") { dismiss() }
                 }
+            }
+            .onChange(of: provider) { _, newValue in
+                AIProvider.current = newValue
+                key = ""
+                justSaved = false
+                hasSavedKey = newValue.savedKey != nil
+            }
+            .sheet(isPresented: $showGuide) {
+                GuideView(initial: provider)
             }
         }
     }

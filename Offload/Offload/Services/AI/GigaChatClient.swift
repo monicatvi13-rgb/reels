@@ -121,25 +121,24 @@ enum GigaChatNetwork {
     }
 }
 
-/// Доверяет серверам, подписанным корневым сертификатом Минцифры,
-/// который лежит в приложении (файл russian_trusted_root_ca.cer или .crt).
+/// Доверяет серверам, подписанным сертификатами Минцифры, которые лежат в приложении:
+/// russian_trusted_root_ca (корневой, обязателен) и russian_trusted_sub_ca (промежуточный, желательно).
 /// Обычные сертификаты тоже продолжают работать.
 final class RussianTrustDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
-    private let rootCertificate: SecCertificate? = RussianTrustDelegate.loadCertificate()
+    private let certificates: [SecCertificate] = ["russian_trusted_root_ca", "russian_trusted_sub_ca"]
+        .compactMap(RussianTrustDelegate.loadCertificate(named:))
 
     func urlSession(
         _ session: URLSession,
         didReceive challenge: URLAuthenticationChallenge
     ) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
         guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-              let trust = challenge.protectionSpace.serverTrust else {
-            return (.performDefaultHandling, nil)
-        }
-        guard let rootCertificate else {
+              let trust = challenge.protectionSpace.serverTrust,
+              !certificates.isEmpty else {
             return (.performDefaultHandling, nil)
         }
 
-        SecTrustSetAnchorCertificates(trust, [rootCertificate] as CFArray)
+        SecTrustSetAnchorCertificates(trust, certificates as CFArray)
         SecTrustSetAnchorCertificatesOnly(trust, false)
 
         if SecTrustEvaluateWithError(trust, nil) {
@@ -148,9 +147,9 @@ final class RussianTrustDelegate: NSObject, URLSessionDelegate, @unchecked Senda
         return (.cancelAuthenticationChallenge, nil)
     }
 
-    private static func loadCertificate() -> SecCertificate? {
+    private static func loadCertificate(named name: String) -> SecCertificate? {
         for ext in ["cer", "crt", "pem", "der"] {
-            guard let url = Bundle.main.url(forResource: "russian_trusted_root_ca", withExtension: ext),
+            guard let url = Bundle.main.url(forResource: name, withExtension: ext),
                   let raw = try? Data(contentsOf: url) else { continue }
             if let certificate = SecCertificateCreateWithData(nil, raw as CFData) {
                 return certificate

@@ -1,0 +1,6 @@
+# Личные настройки Xcode и результаты сборки — в git не нужны
+xcuserdata/
+DerivedData/
+build/
+*.xcuserstate
+.DS_Store

@@ -57,9 +57,7 @@ final class SpeechRecognizer {
             // Включаем звук в фоне: если микрофон «завис», экран не замрёт вместе с ним.
             let session = AVAudioSession.sharedInstance()
             try await Task.detached {
-                let session = AVAudioSession.sharedInstance()
-                try session.setCategory(.record, mode: .measurement, options: .duckOthers)
-                try session.setActive(true, options: .notifyOthersOnDeactivation)
+                try Self.activateRecordingSession()
             }.value
 
             let request = SFSpeechAudioBufferRecognitionRequest()
@@ -116,7 +114,8 @@ final class SpeechRecognizer {
                 self.problem = "Звук с микрофона не доходит до приложения (уровень 0). Похоже, микрофон недоступен этому устройству."
             }
         } catch {
-            problem = "Не получилось включить микрофон (\((error as NSError).code)). Попробуй ещё раз."
+            let nsError = error as NSError
+            problem = "Не получилось включить микрофон (\(nsError.domain) \(nsError.code)). Попробуй ещё раз."
             finish()
         }
     }
@@ -142,6 +141,27 @@ final class SpeechRecognizer {
                 try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
             }
         }
+    }
+
+    /// Включает микрофон. Если система не принимает один режим — пробуем следующий.
+    nonisolated private static func activateRecordingSession() throws {
+        let session = AVAudioSession.sharedInstance()
+        let variants: [(AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)] = [
+            (.record, .measurement, .duckOthers),
+            (.playAndRecord, .default, [.duckOthers, .defaultToSpeaker]),
+            (.record, .default, [])
+        ]
+        var lastError: Error?
+        for (category, mode, options) in variants {
+            do {
+                try session.setCategory(category, mode: mode, options: options)
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+                return
+            } catch {
+                lastError = error
+            }
+        }
+        if let lastError { throw lastError }
     }
 
     private static var noMicrophoneHint: String {

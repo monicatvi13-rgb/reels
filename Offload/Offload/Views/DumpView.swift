@@ -40,18 +40,20 @@ struct DumpView: View {
 
                     editor
                     micButton
-                    sortButton
 
                     if let problem = speech.problem {
-                        Text(problem)
+                        Label(problem, systemImage: "exclamationmark.circle")
                             .font(.footnote)
-                            .foregroundStyle(Theme.muted)
+                            .foregroundStyle(Theme.recording)
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
+                            .textSelection(.enabled)
                     }
+
+                    sortButton
                 }
                 .padding(20)
-                .padding(.bottom, 40)
+                .padding(.bottom, 120)
             }
             .scrollDismissesKeyboard(.interactively)
             .background(Theme.background.ignoresSafeArea())

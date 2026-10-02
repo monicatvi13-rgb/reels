@@ -14,6 +14,10 @@ struct SettingsView: View {
     @State private var justSaved = false
     @State private var showGuide = false
 
+    // Помощник
+    @AppStorage(AppSettings.Key.assistantName) private var assistantName = AppSettings.defaultAssistantName
+    @AppStorage(AppSettings.Key.assistantStyle) private var assistantStyle = AssistantStyle.caring.rawValue
+
     // Голос
     @AppStorage(AppSettings.Key.voiceEnabled) private var voiceEnabled = true
     @AppStorage(AppSettings.Key.voiceIdentifier) private var voiceIdentifier = ""
@@ -34,6 +38,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                assistantSection
                 voiceSection
                 notificationsSection
                 calendarSection
@@ -60,6 +65,25 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Помощник
+
+    private var assistantSection: some View {
+        Section {
+            TextField("Имя", text: $assistantName)
+                .autocorrectionDisabled()
+
+            Picker("Характер", selection: $assistantStyle) {
+                ForEach(AssistantStyle.allCases) { style in
+                    Text(style.title).tag(style.rawValue)
+                }
+            }
+        } header: {
+            Text("Помощник")
+        } footer: {
+            Text("Как зовут твоего помощника и как он с тобой разговаривает. Характер работает, когда подключена нейросеть.")
+        }
+    }
+
     // MARK: - Голос
 
     private var voiceSection: some View {
@@ -75,7 +99,7 @@ struct SettingsView: View {
                 }
 
                 Button {
-                    VoiceService.shared.speak("Привет! Я Offload. Расскажи, что у тебя в голове, — я всё разложу и напомню.", force: true)
+                    VoiceService.shared.speak("Привет! Я \(AppSettings.assistantName). Расскажи, что у тебя в голове, — я всё разложу и напомню.", force: true)
                 } label: {
                     Label("Послушать", systemImage: "play.circle")
                 }

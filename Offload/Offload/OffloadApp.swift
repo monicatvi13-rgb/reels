@@ -15,6 +15,6 @@ struct OffloadApp: App {
                 .tint(Theme.accent)
         }
         // Всё надиктованное и разложенное хранится на устройстве между запусками.
-        .modelContainer(for: [BrainDump.self, OffloadItem.self])
+        .modelContainer(OffloadStore.container)
     }
 }

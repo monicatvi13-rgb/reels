@@ -190,5 +190,5 @@ struct ItemRow: View {
 
 #Preview {
     ListsView()
-        .modelContainer(for: [BrainDump.self, OffloadItem.self], inMemory: true)
+        .modelContainer(for: [BrainDump.self, OffloadItem.self, ChatEntry.self], inMemory: true)
 }

@@ -6,8 +6,37 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0FF10AD0000000000000B00A /* OffloadWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0FF10AD0000000000000B001 /* OffloadWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0FF10AD0000000000000B00C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0FF10AD0000000000000A009 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0FF10AD0000000000000B006;
+			remoteInfo = OffloadWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0FF10AD0000000000000B00B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0FF10AD0000000000000B00A /* OffloadWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		0FF10AD0000000000000A001 /* Offload.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Offload.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0FF10AD0000000000000B001 /* OffloadWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OffloadWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +45,22 @@
 			path = Offload;
 			sourceTree = "<group>";
 		};
+		0FF10AD0000000000000B002 /* OffloadWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = OffloadWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		0FF10AD0000000000000A003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0FF10AD0000000000000B003 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				0FF10AD0000000000000A002 /* Offload */,
+				0FF10AD0000000000000B002 /* OffloadWidget */,
 				0FF10AD0000000000000A005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +83,7 @@
 			isa = PBXGroup;
 			children = (
 				0FF10AD0000000000000A001 /* Offload.app */,
+				0FF10AD0000000000000B001 /* OffloadWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -55,10 +98,12 @@
 				0FF10AD0000000000000A007 /* Sources */,
 				0FF10AD0000000000000A003 /* Frameworks */,
 				0FF10AD0000000000000A008 /* Resources */,
+				0FF10AD0000000000000B00B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0FF10AD0000000000000B00D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0FF10AD0000000000000A002 /* Offload */,
@@ -69,6 +114,28 @@
 			productName = Offload;
 			productReference = 0FF10AD0000000000000A001 /* Offload.app */;
 			productType = "com.apple.product-type.application";
+		};
+		0FF10AD0000000000000B006 /* OffloadWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0FF10AD0000000000000B007 /* Build configuration list for PBXNativeTarget "OffloadWidgetExtension" */;
+			buildPhases = (
+				0FF10AD0000000000000B004 /* Sources */,
+				0FF10AD0000000000000B003 /* Frameworks */,
+				0FF10AD0000000000000B005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0FF10AD0000000000000B002 /* OffloadWidget */,
+			);
+			name = OffloadWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = OffloadWidgetExtension;
+			productReference = 0FF10AD0000000000000B001 /* OffloadWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -81,6 +148,9 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					0FF10AD0000000000000A006 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					0FF10AD0000000000000B006 = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
@@ -101,12 +171,20 @@
 			projectRoot = "";
 			targets = (
 				0FF10AD0000000000000A006 /* Offload */,
+				0FF10AD0000000000000B006 /* OffloadWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		0FF10AD0000000000000A008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0FF10AD0000000000000B005 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -123,7 +201,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0FF10AD0000000000000B004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0FF10AD0000000000000B00D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0FF10AD0000000000000B006 /* OffloadWidgetExtension */;
+			targetProxy = 0FF10AD0000000000000B00C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0FF10AD0000000000000A00C /* Debug */ = {
@@ -249,6 +342,54 @@
 			};
 			name = Release;
 		};
+		0FF10AD0000000000000B008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OffloadWidgetInfo.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Offload;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.neurosistema.offload.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		0FF10AD0000000000000B009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OffloadWidgetInfo.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Offload;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.neurosistema.offload.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -266,6 +407,15 @@
 			buildConfigurations = (
 				0FF10AD0000000000000A00C /* Debug */,
 				0FF10AD0000000000000A00D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0FF10AD0000000000000B007 /* Build configuration list for PBXNativeTarget "OffloadWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0FF10AD0000000000000B008 /* Debug */,
+				0FF10AD0000000000000B009 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

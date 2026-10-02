@@ -12,6 +12,7 @@ struct RootView: View {
     @Query(sort: \OffloadItem.createdAt) private var items: [OffloadItem]
     @Environment(\.scenePhase) private var scenePhase
     @State private var tab: AppTab = .dump
+    @State private var navigator = AppNavigator.shared
 
     var body: some View {
         TabView(selection: $tab) {
@@ -42,6 +43,19 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .offloadSettingsChanged)) { _ in
             Task { await AppSync.refresh(items) }
         }
+        // Siri или кнопка «Действие» попросили поговорить — открываем разговор.
+        .onChange(of: navigator.talkRequest) { _, request in
+            if request != nil { tab = .ask }
+        }
+        .onAppear {
+            if navigator.talkRequest != nil { tab = .ask }
+        }
+        // Ссылка из виджета: offload://talk
+        .onOpenURL { url in
+            if url.scheme == "offload" && url.host == "talk" {
+                navigator.requestTalk()
+            }
+        }
     }
 }
 
@@ -52,5 +66,5 @@ extension Notification.Name {
 
 #Preview {
     RootView()
-        .modelContainer(for: [BrainDump.self, OffloadItem.self], inMemory: true)
+        .modelContainer(for: [BrainDump.self, OffloadItem.self, ChatEntry.self], inMemory: true)
 }

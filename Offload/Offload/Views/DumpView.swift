@@ -349,5 +349,5 @@ private struct SummaryCard: View {
 
 #Preview {
     DumpView(tab: .constant(.dump))
-        .modelContainer(for: [BrainDump.self, OffloadItem.self], inMemory: true)
+        .modelContainer(for: [BrainDump.self, OffloadItem.self, ChatEntry.self], inMemory: true)
 }

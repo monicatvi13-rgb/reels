@@ -93,3 +93,24 @@ final class OffloadItem {
         self.createdAt = createdAt
     }
 }
+
+/// Одна реплика в разговоре с помощником. Хранится, чтобы он помнил контекст.
+@Model
+final class ChatEntry {
+    var isUser: Bool
+    var text: String
+    /// Что сделано по команде — строки, разделённые переводом строки.
+    var actionsText: String = ""
+    var createdAt: Date
+
+    var actions: [String] {
+        actionsText.isEmpty ? [] : actionsText.components(separatedBy: "\n")
+    }
+
+    init(isUser: Bool, text: String, actions: [String] = [], createdAt: Date = .now) {
+        self.isUser = isUser
+        self.text = text
+        self.actionsText = actions.joined(separator: "\n")
+        self.createdAt = createdAt
+    }
+}

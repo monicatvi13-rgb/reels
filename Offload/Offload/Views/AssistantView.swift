@@ -4,12 +4,18 @@ import SwiftData
 /// Экран-собеседник: спроси голосом или текстом — Offload ответит голосом.
 struct AssistantView: View {
     @Query(sort: \OffloadItem.createdAt, order: .reverse) private var items: [OffloadItem]
+    /// Сохранённый разговор — помощник помнит его и после закрытия приложения.
+    @Query(sort: \ChatEntry.createdAt) private var messages: [ChatEntry]
     @Environment(\.modelContext) private var context
     @AppStorage(AppSettings.Key.voiceEnabled) private var voiceEnabled = true
+    @AppStorage(AppSettings.Key.assistantName) private var assistantName = AppSettings.defaultAssistantName
 
     @State private var speech = SpeechRecognizer()
     @State private var voice = VoiceService.shared
-    @State private var messages: [ChatMessage] = []
+    @State private var navigator = AppNavigator.shared
+    /// Вопрос, который уже отправлен, а ответ ещё не пришёл.
+    @State private var pendingQuestion: String?
+    @State private var confirmClear = false
     @State private var input = ""
     @State private var isCapturingSpeech = false
     @State private var isThinking = false
@@ -35,10 +41,13 @@ struct AssistantView: View {
                                 welcome
                             }
                             ForEach(messages) { message in
-                                MessageBubble(message: message) {
+                                MessageBubble(isUser: message.isUser, text: message.text, actions: message.actions) {
                                     voice.speak(message.text, force: true)
                                 }
-                                .id(message.id)
+                                .id(message.persistentModelID)
+                            }
+                            if let pendingQuestion {
+                                MessageBubble(isUser: true, text: pendingQuestion, actions: []) {}
                             }
                             if isThinking {
                                 ThinkingBubble()
@@ -49,8 +58,13 @@ struct AssistantView: View {
                     }
                     .scrollDismissesKeyboard(.interactively)
                     .onChange(of: messages.count) { _, _ in
-                        if let id = messages.last?.id {
+                        if let id = messages.last?.persistentModelID {
                             withAnimation { proxy.scrollTo(id, anchor: .bottom) }
+                        }
+                    }
+                    .onAppear {
+                        if let id = messages.last?.persistentModelID {
+                            proxy.scrollTo(id, anchor: .bottom)
                         }
                     }
                     .onChange(of: isThinking) { _, thinking in
@@ -75,9 +89,20 @@ struct AssistantView: View {
                 inputBar
             }
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Спросить")
+            .navigationTitle(assistantNameDisplay)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                if !messages.isEmpty {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            confirmClear = true
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(Theme.muted)
+                        }
+                        .accessibilityLabel("Очистить разговор")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         voiceEnabled.toggle()
@@ -93,7 +118,25 @@ struct AssistantView: View {
                 guard isCapturingSpeech else { return }
                 input = newValue
             }
+            .confirmationDialog("Очистить разговор?", isPresented: $confirmClear, titleVisibility: .visible) {
+                Button("Очистить", role: .destructive) { ChatMemory.clear(in: context) }
+            } message: {
+                Text("\(assistantNameDisplay) забудет, о чём вы говорили. Списки останутся.")
+            }
+            // Siri, кнопка «Действие» или виджет попросили поговорить — сразу слушаем.
+            .onChange(of: navigator.talkRequest) { _, _ in startListeningIfRequested() }
+            .onAppear { startListeningIfRequested() }
         }
+    }
+
+    private var assistantNameDisplay: String {
+        let name = assistantName.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? AppSettings.defaultAssistantName : name
+    }
+
+    private func startListeningIfRequested() {
+        guard navigator.consumeTalkRequest(), !speech.isRecording, !isThinking else { return }
+        Task { await toggleRecording() }
     }
 
     // MARK: - Приветствие
@@ -101,7 +144,7 @@ struct AssistantView: View {
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Спроси меня")
+                Text("Привет, я \(assistantNameDisplay)")
                     .font(.system(.largeTitle, design: .serif).weight(.semibold))
                     .foregroundStyle(Theme.ink)
                 Text("О делах, планах и покупках. Отвечу голосом — можно не смотреть в экран.")
@@ -197,8 +240,8 @@ struct AssistantView: View {
         input = ""
         voice.stop()
 
-        let history = turns()
-        messages.append(ChatMessage(role: .user, text: question))
+        let history = ChatMemory.turns(from: Array(messages))
+        pendingQuestion = question
         isThinking = true
 
         // Снимок списков: номер пункта в нём — его id для нейросети.
@@ -207,58 +250,35 @@ struct AssistantView: View {
         Task {
             let reply = await Assistant().respond(to: question, items: snapshot, history: history)
             let done = ActionRunner(context: context).run(reply.actions, on: current)
+            ChatMemory.save(question: question, reply: reply.text, actions: done, in: context)
+            pendingQuestion = nil
             isThinking = false
-            messages.append(ChatMessage(role: .assistant, text: reply.text, actions: done))
             voice.speak(reply.text)
         }
-    }
-
-    /// Прошлые вопросы и ответы — чтобы собеседник помнил контекст разговора.
-    private func turns() -> [Assistant.Turn] {
-        var result: [Assistant.Turn] = []
-        var pendingQuestion: String?
-        for message in messages {
-            switch message.role {
-            case .user: pendingQuestion = message.text
-            case .assistant:
-                if let question = pendingQuestion {
-                    result.append(Assistant.Turn(question: question, answer: message.text))
-                    pendingQuestion = nil
-                }
-            }
-        }
-        return result
     }
 }
 
 // MARK: - Сообщения
 
-struct ChatMessage: Identifiable {
-    enum Role { case user, assistant }
-
-    let id = UUID()
-    let role: Role
+private struct MessageBubble: View {
+    let isUser: Bool
     let text: String
     /// Что сделано по команде: «＋ Позвонить маме · завтра, 10:00».
-    var actions: [String] = []
-}
-
-private struct MessageBubble: View {
-    let message: ChatMessage
+    let actions: [String]
     let onReplay: () -> Void
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            if message.role == .user { Spacer(minLength: 48) }
+            if isUser { Spacer(minLength: 48) }
 
             VStack(alignment: .leading, spacing: 10) {
-                Text(message.text)
-                    .foregroundStyle(message.role == .user ? .white : Theme.ink)
+                Text(text)
+                    .foregroundStyle(isUser ? .white : Theme.ink)
                     .textSelection(.enabled)
 
-                if !message.actions.isEmpty {
+                if !actions.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(Array(message.actions.enumerated()), id: \.offset) { _, action in
+                        ForEach(Array(actions.enumerated()), id: \.offset) { _, action in
                             Text(action)
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(Theme.accent)
@@ -272,11 +292,11 @@ private struct MessageBubble: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(
-                message.role == .user ? Theme.accent : Theme.card,
+                isUser ? Theme.accent : Theme.card,
                 in: RoundedRectangle(cornerRadius: 20, style: .continuous)
             )
 
-            if message.role == .assistant {
+            if !isUser {
                 Button(action: onReplay) {
                     Image(systemName: "speaker.wave.2")
                         .font(.footnote)
@@ -287,7 +307,7 @@ private struct MessageBubble: View {
                 Spacer(minLength: 24)
             }
         }
-        .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
+        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
     }
 }
 
@@ -351,5 +371,5 @@ struct FlowLayout: Layout {
 
 #Preview {
     AssistantView()
-        .modelContainer(for: [BrainDump.self, OffloadItem.self], inMemory: true)
+        .modelContainer(for: [BrainDump.self, OffloadItem.self, ChatEntry.self], inMemory: true)
 }

@@ -47,9 +47,9 @@ final class SpeechRecognizer {
 
         transcript = ""
         do {
-            // Один общий режим и для записи, и для голоса — они больше не мешают друг другу.
+            // Те же настройки звука, что в первой версии, где запись точно работала.
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .default, options: [.duckOthers, .defaultToSpeaker, .allowBluetooth])
+            try session.setCategory(.record, mode: .measurement, options: .duckOthers)
             try session.setActive(true, options: .notifyOthersOnDeactivation)
 
             let request = SFSpeechAudioBufferRecognitionRequest()

@@ -4,6 +4,7 @@ import SwiftData
 /// Экран-собеседник: спроси голосом или текстом — Offload ответит голосом.
 struct AssistantView: View {
     @Query(sort: \OffloadItem.createdAt, order: .reverse) private var items: [OffloadItem]
+    @Environment(\.modelContext) private var context
     @AppStorage(AppSettings.Key.voiceEnabled) private var voiceEnabled = true
 
     @State private var speech = SpeechRecognizer()
@@ -19,7 +20,9 @@ struct AssistantView: View {
         "Что на завтра?",
         "Что на этой неделе?",
         "Что нужно купить?",
-        "Какие у меня идеи?"
+        "Какие у меня идеи?",
+        "Напомни завтра в 10 позвонить маме",
+        "Добавь в покупки молоко и хлеб"
     ]
 
     var body: some View {
@@ -193,12 +196,15 @@ struct AssistantView: View {
         messages.append(ChatMessage(role: .user, text: question))
         isThinking = true
 
-        let snapshot = items.map { ItemSnapshot($0) }
+        // Снимок списков: номер пункта в нём — его id для нейросети.
+        let current = Array(items)
+        let snapshot = current.map { ItemSnapshot($0) }
         Task {
-            let answer = await Assistant().answer(question, items: snapshot, history: history)
+            let reply = await Assistant().respond(to: question, items: snapshot, history: history)
+            let done = ActionRunner(context: context).run(reply.actions, on: current)
             isThinking = false
-            messages.append(ChatMessage(role: .assistant, text: answer))
-            voice.speak(answer)
+            messages.append(ChatMessage(role: .assistant, text: reply.text, actions: done))
+            voice.speak(reply.text)
         }
     }
 
@@ -228,6 +234,8 @@ struct ChatMessage: Identifiable {
     let id = UUID()
     let role: Role
     let text: String
+    /// Что сделано по команде: «＋ Позвонить маме · завтра, 10:00».
+    var actions: [String] = []
 }
 
 private struct MessageBubble: View {
@@ -238,15 +246,30 @@ private struct MessageBubble: View {
         HStack(alignment: .bottom, spacing: 8) {
             if message.role == .user { Spacer(minLength: 48) }
 
-            Text(message.text)
-                .foregroundStyle(message.role == .user ? .white : Theme.ink)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(
-                    message.role == .user ? Theme.accent : Theme.card,
-                    in: RoundedRectangle(cornerRadius: 20, style: .continuous)
-                )
-                .textSelection(.enabled)
+            VStack(alignment: .leading, spacing: 10) {
+                Text(message.text)
+                    .foregroundStyle(message.role == .user ? .white : Theme.ink)
+                    .textSelection(.enabled)
+
+                if !message.actions.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(message.actions.enumerated()), id: \.offset) { _, action in
+                            Text(action)
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(Theme.accent)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Theme.accent.opacity(0.12), in: Capsule())
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                message.role == .user ? Theme.accent : Theme.card,
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+            )
 
             if message.role == .assistant {
                 Button(action: onReplay) {

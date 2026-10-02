@@ -69,6 +69,8 @@ final class VoiceService: NSObject {
     }
 
     private func finished() {
+        // Отмена старой фразы не должна обрывать новую.
+        guard !synthesizer.isSpeaking else { return }
         isSpeaking = false
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }

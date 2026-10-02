@@ -86,17 +86,17 @@ enum Briefing {
     /// Текст уведомления на утро конкретного дня. nil — если сказать нечего.
     static func morningText(for day: Date, items: [ItemSnapshot]) -> String? {
         let dated = Self.items(on: day, from: items)
-        let urgent = urgent(from: items)
-        guard !dated.isEmpty || !urgent.isEmpty else { return nil }
+        let urgentItems = urgent(from: items)
+        guard !dated.isEmpty || !urgentItems.isEmpty else { return nil }
 
         var parts: [String] = []
         if !dated.isEmpty {
             parts.append("Сегодня: \(list(dated, limit: 4)).")
         }
-        if !urgent.isEmpty {
+        if !urgentItems.isEmpty {
             parts.append(dated.isEmpty
-                ? "Срочное: \(list(urgent, limit: 3))."
-                : "И ещё срочное: \(list(urgent, limit: 2)).")
+                ? "Срочное: \(list(urgentItems, limit: 3))."
+                : "И ещё срочное: \(list(urgentItems, limit: 2)).")
         }
         return parts.joined(separator: " ").capitalizedFirst
     }

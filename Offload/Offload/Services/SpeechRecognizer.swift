@@ -88,7 +88,10 @@ final class SpeechRecognizer {
         task = nil
         request = nil
         engine = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        // Если приложение уже отвечает голосом — не выключаем звук.
+        if !VoiceService.shared.isSpeaking {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 
     // Эти функции работают вне главного потока: звук приходит из фоновой очереди.

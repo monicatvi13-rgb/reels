@@ -55,6 +55,15 @@ struct AssistantView: View {
                     }
                 }
 
+                if let problem = speech.problem {
+                    Text(problem)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.muted)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 6)
+                }
+
                 inputBar
             }
             .background(Theme.background.ignoresSafeArea())
@@ -164,6 +173,10 @@ struct AssistantView: View {
             input = ""
             isCapturingSpeech = true
             await speech.start()
+            if !speech.isRecording {
+                // Нет доступа к микрофону — подсказка уже на экране.
+                isCapturingSpeech = false
+            }
         }
     }
 

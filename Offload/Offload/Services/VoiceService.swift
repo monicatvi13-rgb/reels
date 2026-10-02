@@ -39,8 +39,11 @@ final class VoiceService: NSObject {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
 
+        // Пока идёт запись, не перебиваем микрофон.
+        guard !SpeechRecognizer.isAnyRecording else { return }
+
         stop()
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: .duckOthers)
+        try? AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: [.duckOthers, .defaultToSpeaker, .allowBluetooth])
         try? AVAudioSession.sharedInstance().setActive(true)
 
         let utterance = AVSpeechUtterance(string: clean)
@@ -72,6 +75,8 @@ final class VoiceService: NSObject {
         // Отмена старой фразы не должна обрывать новую.
         guard !synthesizer.isSpeaking else { return }
         isSpeaking = false
+        // Микрофон уже включён — звук не выключаем, иначе запись оборвётся.
+        guard !SpeechRecognizer.isAnyRecording else { return }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }

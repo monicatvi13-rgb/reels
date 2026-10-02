@@ -48,9 +48,13 @@ final class SpeechRecognizer {
         transcript = ""
         do {
             // Те же настройки звука, что в первой версии, где запись точно работала.
+            // Включаем звук в фоне: если микрофон «завис», экран не замрёт вместе с ним.
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement, options: .duckOthers)
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            try await Task.detached {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+            }.value
 
             let request = SFSpeechAudioBufferRecognitionRequest()
             request.shouldReportPartialResults = true
@@ -114,7 +118,9 @@ final class SpeechRecognizer {
         engine = nil
         // Если приложение уже отвечает голосом — не выключаем звук.
         if !VoiceService.shared.isSpeaking {
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            Task.detached {
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            }
         }
     }
 

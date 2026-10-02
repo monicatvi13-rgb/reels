@@ -70,19 +70,25 @@ final class OffloadItem {
     var title: String
     var categoryRaw: String
     var dueDate: Date?
+    /// Указано ли точное время, а не только день.
+    var hasTime: Bool = false
     var isDone: Bool
     var createdAt: Date
     var dump: BrainDump?
+    /// Связь с событием в Календаре и с напоминанием в «Напоминаниях».
+    var calendarEventID: String? = nil
+    var reminderID: String? = nil
 
     var category: ItemCategory {
         get { ItemCategory(rawValue: categoryRaw) ?? .ideas }
         set { categoryRaw = newValue.rawValue }
     }
 
-    init(title: String, category: ItemCategory, dueDate: Date? = nil, isDone: Bool = false, createdAt: Date = .now) {
+    init(title: String, category: ItemCategory, dueDate: Date? = nil, hasTime: Bool = false, isDone: Bool = false, createdAt: Date = .now) {
         self.title = title
         self.categoryRaw = category.rawValue
         self.dueDate = dueDate
+        self.hasTime = hasTime && dueDate != nil
         self.isDone = isDone
         self.createdAt = createdAt
     }

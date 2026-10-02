@@ -12,6 +12,7 @@ struct EditItemView: View {
     @State private var title = ""
     @State private var category: ItemCategory = .urgent
     @State private var hasDate = false
+    @State private var hasTime = false
     @State private var date = Date.now
     @State private var isDone = false
     @State private var confirmDelete = false
@@ -41,6 +42,10 @@ struct EditItemView: View {
                     Toggle("Есть дата", isOn: $hasDate.animation())
                     if hasDate {
                         DatePicker("Когда", selection: $date, displayedComponents: .date)
+                        Toggle("Указать время", isOn: $hasTime.animation())
+                        if hasTime {
+                            DatePicker("Время", selection: $date, displayedComponents: .hourAndMinute)
+                        }
                     }
                     if !isNew {
                         Toggle("Уже сделано", isOn: $isDone)
@@ -68,7 +73,10 @@ struct EditItemView: View {
             }
             .confirmationDialog("Удалить этот пункт?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Удалить", role: .destructive) {
-                    if let item { context.delete(item) }
+                    if let item {
+                        CalendarSync.shared.remove(item)
+                        context.delete(item)
+                    }
                     dismiss()
                 }
             }
@@ -84,21 +92,24 @@ struct EditItemView: View {
         title = item.title
         category = item.category
         hasDate = item.dueDate != nil
+        hasTime = item.hasTime
         date = item.dueDate ?? .now
         isDone = item.isDone
     }
 
     private func save() {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let dueDate = hasDate ? date : nil
+        let withTime = hasDate && hasTime
+        let dueDate = hasDate ? (withTime ? date : Calendar.current.startOfDay(for: date)) : nil
 
         if let item {
             item.title = cleanTitle
             item.category = category
             item.dueDate = dueDate
+            item.hasTime = withTime
             item.isDone = isDone
         } else {
-            context.insert(OffloadItem(title: cleanTitle, category: category, dueDate: dueDate))
+            context.insert(OffloadItem(title: cleanTitle, category: category, dueDate: dueDate, hasTime: withTime))
         }
         dismiss()
     }

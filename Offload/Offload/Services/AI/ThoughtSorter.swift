@@ -6,14 +6,17 @@ struct SortedThoughts: Decodable {
         let title: String
         /// Дата в формате ГГГГ-ММ-ДД или пустая строка, если даты нет.
         let date: String
+        /// Время в формате ЧЧ:ММ или пустая строка, если время не названо.
+        let time: String
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             title = try container.decode(String.self, forKey: .title)
             date = (try? container.decodeIfPresent(String.self, forKey: .date)) ?? ""
+            time = (try? container.decodeIfPresent(String.self, forKey: .time)) ?? ""
         }
 
-        private enum CodingKeys: String, CodingKey { case title, date }
+        private enum CodingKeys: String, CodingKey { case title, date, time }
     }
 
     let comment: String
@@ -72,13 +75,16 @@ struct ThoughtSorter {
       положи её в ideas.
     - Поле date: дата в формате ГГГГ-ММ-ДД, если день назван прямо или относительно \
       («завтра», «в пятницу», «15 числа») — вычисли её от сегодняшней даты. \
-      Если даты нет — пустая строка.
+      Если даты нет — пустая строка. Если дело на сегодня и названо время — \
+      поставь сегодняшнюю дату.
+    - Поле time: время в формате ЧЧ:ММ, если оно названо («в 10», «к трём часам дня» → 15:00). \
+      Если времени нет — пустая строка.
     - Поле comment: одна тёплая короткая фраза поддержки на русском (до 15 слов), \
       обращайся на «ты», без пафоса и без эмодзи.
     - Если категория пустая — верни пустой массив.
 
     Ответь ТОЛЬКО JSON-объектом, без пояснений и без markdown, строго такого вида:
-    {"comment": "…", "urgent": [{"title": "…", "date": ""}], "dated": [{"title": "…", "date": "2026-10-03"}], "ideas": [], "home": []}
+    {"comment": "…", "urgent": [{"title": "…", "date": "", "time": ""}], "dated": [{"title": "…", "date": "2026-10-03", "time": "10:00"}], "ideas": [], "home": []}
     """
 
     /// JSON-схема ответа. Claude соблюдает её гарантированно, GigaChat — по инструкции выше.
@@ -87,9 +93,10 @@ struct ThoughtSorter {
             "type": "object",
             "properties": [
                 "title": ["type": "string"],
-                "date": ["type": "string"]
+                "date": ["type": "string"],
+                "time": ["type": "string"]
             ],
-            "required": ["title", "date"],
+            "required": ["title", "date", "time"],
             "additionalProperties": false
         ]
         let list: [String: Any] = ["type": "array", "items": entry]
@@ -131,5 +138,17 @@ struct ThoughtSorter {
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.date(from: string)
+    }
+
+    /// Дата и время пункта. Если названо только время — считаем, что это сегодня.
+    static func parseDue(date: String, time: String, today: Date = .now) -> (date: Date?, hasTime: Bool) {
+        let day = parseDate(date)
+        let parts = time.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2, (0..<24).contains(parts[0]), (0..<60).contains(parts[1]) else {
+            return (day, false)
+        }
+        let base = Calendar.current.startOfDay(for: day ?? today)
+        let withTime = Calendar.current.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: base)
+        return (withTime ?? day, withTime != nil)
     }
 }

@@ -235,6 +235,9 @@ struct DumpView: View {
                 summary = Summary(sorted)
                 text = ""
             }
+            if !sorted.comment.isEmpty {
+                VoiceService.shared.speak(sorted.comment)
+            }
         } catch AIError.noKey {
             showGuide = true
         } catch {
@@ -254,10 +257,12 @@ struct DumpView: View {
         ]
         for (category, entries) in groups {
             for entry in entries {
+                let due = ThoughtSorter.parseDue(date: entry.date, time: entry.time)
                 let item = OffloadItem(
                     title: entry.title,
                     category: category,
-                    dueDate: ThoughtSorter.parseDate(entry.date)
+                    dueDate: due.date,
+                    hasTime: due.hasTime
                 )
                 item.dump = dump
                 context.insert(item)

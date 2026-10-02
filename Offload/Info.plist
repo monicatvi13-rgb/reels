@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Offload добавляет дела с датой в твой Календарь и обновляет их, если ты что-то поменяешь.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Offload добавляет дела с датой в твой Календарь.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Offload добавляет дела с датой в «Напоминания» и отмечает их выполненными.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Offload добавляет дела с датой в «Напоминания».</string>
+</dict>
+</plist>

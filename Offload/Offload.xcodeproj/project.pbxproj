@@ -197,6 +197,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Offload;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Микрофон нужен, чтобы ты могла наговорить всё, что крутится в голове.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Распознавание речи превращает твой голос в текст прямо на устройстве.";
@@ -227,6 +228,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Offload;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Микрофон нужен, чтобы ты могла наговорить всё, что крутится в голове.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Распознавание речи превращает твой голос в текст прямо на устройстве.";

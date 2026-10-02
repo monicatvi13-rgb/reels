@@ -58,7 +58,12 @@ struct ListsView: View {
                 if !done.isEmpty {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("Убрать сделанное") {
-                            withAnimation { done.forEach { context.delete($0) } }
+                            withAnimation {
+                                done.forEach {
+                                    CalendarSync.shared.remove($0)
+                                    context.delete($0)
+                                }
+                            }
                         }
                         .font(.subheadline)
                     }
@@ -118,7 +123,10 @@ struct ListsView: View {
 
     private func delete(_ source: [OffloadItem], at offsets: IndexSet) {
         withAnimation {
-            offsets.map { source[$0] }.forEach { context.delete($0) }
+            offsets.map { source[$0] }.forEach {
+                CalendarSync.shared.remove($0)
+                context.delete($0)
+            }
         }
     }
 }
@@ -154,7 +162,7 @@ struct ItemRow: View {
                     .strikethrough(item.isDone, color: Theme.muted)
 
                 if let date = item.dueDate {
-                    Label(Self.format(date), systemImage: "calendar")
+                    Label(Self.format(date, hasTime: item.hasTime), systemImage: item.hasTime ? "clock" : "calendar")
                         .font(.caption)
                         .foregroundStyle(Self.isOverdue(date) && !item.isDone ? Theme.recording : Theme.muted)
                 }
@@ -166,11 +174,13 @@ struct ItemRow: View {
         .padding(.vertical, 6)
     }
 
-    static func format(_ date: Date) -> String {
+    static func format(_ date: Date, hasTime: Bool) -> String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(date) { return "Сегодня" }
-        if calendar.isDateInTomorrow(date) { return "Завтра" }
-        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.wide))
+        let day: String
+        if calendar.isDateInToday(date) { day = "Сегодня" }
+        else if calendar.isDateInTomorrow(date) { day = "Завтра" }
+        else { day = date.formatted(.dateTime.weekday(.abbreviated).day().month(.wide)) }
+        return hasTime ? "\(day), \(Briefing.timeString(date))" : day
     }
 
     static func isOverdue(_ date: Date) -> Bool {

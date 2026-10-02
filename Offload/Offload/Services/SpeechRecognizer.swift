@@ -16,6 +16,10 @@ final class SpeechRecognizer {
     private(set) var state: State = .idle
     private(set) var transcript = ""
     var problem: String?
+    /// Громкость звука с микрофона от 0 до 1 — видно, доходит ли звук до приложения.
+    private(set) var level: Float = 0
+    /// Был ли за время записи хоть какой-то звук.
+    private(set) var heardSound = false
 
     /// Идёт ли сейчас запись где-нибудь в приложении — чтобы голос не выключил микрофон.
     static private(set) var isAnyRecording = false
@@ -46,6 +50,8 @@ final class SpeechRecognizer {
         }
 
         transcript = ""
+        level = 0
+        heardSound = false
         do {
             // Те же настройки звука, что в первой версии, где запись точно работала.
             // Включаем звук в фоне: если микрофон «завис», экран не замрёт вместе с ним.
@@ -75,7 +81,13 @@ final class SpeechRecognizer {
                 try? session.setActive(false, options: .notifyOthersOnDeactivation)
                 return
             }
-            Self.installTap(on: engine.inputNode, format: format, feeding: request)
+            Self.installTap(on: engine.inputNode, format: format, feeding: request) { [weak self] value in
+                Task { @MainActor in
+                    guard let self, self.isRecording else { return }
+                    self.level = value
+                    if value > 0.02 { self.heardSound = true }
+                }
+            }
             engine.prepare()
             try engine.start()
 
@@ -96,6 +108,13 @@ final class SpeechRecognizer {
             }
             state = .recording
             Self.isAnyRecording = true
+
+            // Через 3 секунды проверяем: если звука так и не было — честно говорим об этом.
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(3))
+                guard let self, self.isRecording, !self.heardSound, self.request.map({ ObjectIdentifier($0) }) == recordingID else { return }
+                self.problem = "Звук с микрофона не доходит до приложения (уровень 0). Похоже, микрофон недоступен этому устройству."
+            }
         } catch {
             problem = "Не получилось включить микрофон (\((error as NSError).code)). Попробуй ещё раз."
             finish()
@@ -108,6 +127,7 @@ final class SpeechRecognizer {
         engine?.inputNode.removeTap(onBus: 0)
         request?.endAudio()
         state = .idle
+        level = 0
         Self.isAnyRecording = false
     }
 
@@ -134,9 +154,24 @@ final class SpeechRecognizer {
 
     // Эти функции работают вне главного потока: звук приходит из фоновой очереди.
 
-    nonisolated private static func installTap(on input: AVAudioInputNode, format: AVAudioFormat, feeding request: SFSpeechAudioBufferRecognitionRequest) {
+    nonisolated private static func installTap(
+        on input: AVAudioInputNode,
+        format: AVAudioFormat,
+        feeding request: SFSpeechAudioBufferRecognitionRequest,
+        onLevel: @escaping @Sendable (Float) -> Void
+    ) {
+        let counter = TapCounter()
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             request.append(buffer)
+            // Громкость считаем не на каждый кусочек звука, а примерно 10 раз в секунду.
+            counter.value += 1
+            guard counter.value % 4 == 0, let samples = buffer.floatChannelData?[0] else { return }
+            let count = Int(buffer.frameLength)
+            guard count > 0 else { return }
+            var sum: Float = 0
+            for i in 0..<count { sum += samples[i] * samples[i] }
+            let rms = (sum / Float(count)).squareRoot()
+            onLevel(min(1, rms * 8))
         }
     }
 
@@ -161,4 +196,9 @@ final class SpeechRecognizer {
         guard speechAllowed else { return false }
         return await AVAudioApplication.requestRecordPermission()
     }
+}
+
+/// Счётчик кусочков звука (их присылает фоновая очередь).
+private final class TapCounter: @unchecked Sendable {
+    var value = 0
 }

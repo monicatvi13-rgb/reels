@@ -176,6 +176,10 @@ struct DumpView: View {
             .accessibilityLabel(speech.isRecording ? "Остановить запись" : "Начать запись")
             .sensoryFeedback(.impact(weight: .medium), trigger: speech.isRecording)
 
+            if speech.isRecording {
+                LevelMeter(level: speech.level)
+            }
+
             Text(speech.isRecording ? "Слушаю… Нажми, когда закончишь" : "Нажми и говори")
                 .font(.subheadline)
                 .foregroundStyle(Theme.muted)

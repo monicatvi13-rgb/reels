@@ -61,3 +61,21 @@ struct PrimaryButtonStyle: ButtonStyle {
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
+
+/// Полоска громкости микрофона: видно, что звук доходит до приложения.
+struct LevelMeter: View {
+    let level: Float
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<12, id: \.self) { index in
+                let threshold = Float(index) / 12
+                Capsule()
+                    .fill(level > threshold ? Theme.recording : Theme.muted.opacity(0.25))
+                    .frame(width: 6, height: 8 + CGFloat(index % 4) * 4)
+            }
+        }
+        .animation(.easeOut(duration: 0.1), value: level)
+        .accessibilityLabel("Уровень звука")
+    }
+}

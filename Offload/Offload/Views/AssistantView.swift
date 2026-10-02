@@ -58,6 +58,11 @@ struct AssistantView: View {
                     }
                 }
 
+                if speech.isRecording {
+                    LevelMeter(level: speech.level)
+                        .padding(.top, 6)
+                }
+
                 if let problem = speech.problem {
                     Text(problem)
                         .font(.footnote)

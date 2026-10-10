@@ -98,7 +98,7 @@ enum GigaChatNetwork {
         do {
             (data, response) = try await session.data(for: request)
         } catch let error as URLError where Self.isCertificateError(error) {
-            throw AIError.certificate
+            throw AIError.certificate(RussianTrustDelegate.diagnostics(for: error))
         } catch {
             throw AIError.network(error.localizedDescription)
         }
@@ -125,8 +125,27 @@ enum GigaChatNetwork {
 /// russian_trusted_root_ca (корневой, обязателен) и russian_trusted_sub_ca (промежуточный, желательно).
 /// Обычные сертификаты тоже продолжают работать.
 final class RussianTrustDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
-    private let certificates: [SecCertificate] = ["russian_trusted_root_ca", "russian_trusted_sub_ca"]
+    private let certificates: [SecCertificate] = RussianTrustDelegate.loadedCertificates
+
+    /// Сертификаты, которые удалось прочитать из приложения.
+    static let loadedCertificates: [SecCertificate] = ["russian_trusted_root_ca", "russian_trusted_sub_ca"]
         .compactMap(RussianTrustDelegate.loadCertificate(named:))
+
+    /// Последняя причина, по которой проверка безопасности не пропустила сервер.
+    static var lastTrustFailure: String?
+
+    /// Понятный отчёт: какие сертификаты прочитаны и что ответила проверка.
+    static func diagnostics(for error: URLError) -> String {
+        let names = loadedCertificates
+            .map { SecCertificateCopySubjectSummary($0) as String? ?? "без имени" }
+            .joined(separator: ", ")
+        var parts = [
+            "сертификатов прочитано: \(loadedCertificates.count)\(names.isEmpty ? "" : " (\(names))")",
+            "ошибка сети: \(error.code.rawValue)"
+        ]
+        if let lastTrustFailure { parts.append("проверка: \(lastTrustFailure)") }
+        return parts.joined(separator: "; ")
+    }
 
     func urlSession(
         _ session: URLSession,
@@ -141,9 +160,12 @@ final class RussianTrustDelegate: NSObject, URLSessionDelegate, @unchecked Senda
         SecTrustSetAnchorCertificates(trust, certificates as CFArray)
         SecTrustSetAnchorCertificatesOnly(trust, false)
 
-        if SecTrustEvaluateWithError(trust, nil) {
+        var trustError: CFError?
+        if SecTrustEvaluateWithError(trust, &trustError) {
+            Self.lastTrustFailure = nil
             return (.useCredential, URLCredential(trust: trust))
         }
+        Self.lastTrustFailure = (trustError as Error?)?.localizedDescription ?? "сервер не прошёл проверку"
         return (.cancelAuthenticationChallenge, nil)
     }
 

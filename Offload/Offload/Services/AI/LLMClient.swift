@@ -26,7 +26,7 @@ enum AIError: LocalizedError {
     case unauthorized(AIProvider)
     case rateLimited
     case api(Int, String)
-    case certificate
+    case certificate(String)
     case refusal
     case badResponse
 
@@ -42,8 +42,8 @@ enum AIError: LocalizedError {
             "Слишком много запросов подряд. Подожди минутку и попробуй снова."
         case .api(let code, let message):
             "Нейросеть ответила ошибкой \(code): \(message)"
-        case .certificate:
-            "Не удалось установить защищённое соединение с GigaChat. В приложение не добавлен сертификат Минцифры — см. инструкцию в README."
+        case .certificate(let details):
+            "Не удалось установить защищённое соединение с GigaChat.\n\nПодробности для разработчика: \(details)"
         case .refusal:
             "Нейросеть не смогла обработать этот текст. Попробуй переформулировать."
         case .badResponse:

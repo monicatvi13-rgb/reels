@@ -21,6 +21,13 @@ struct SettingsView: View {
     // Голос
     @AppStorage(AppSettings.Key.voiceEnabled) private var voiceEnabled = true
     @AppStorage(AppSettings.Key.voiceIdentifier) private var voiceIdentifier = ""
+    @AppStorage(AppSettings.Key.voiceEngine) private var voiceEngine = VoiceEngine.apple.rawValue
+    @AppStorage(AppSettings.Key.yandexVoice) private var yandexVoice = YandexSpeech.Voice.alena.rawValue
+    @State private var yandexKey = ""
+    @State private var hasYandexKey = YandexSpeech.savedKey != nil
+    @State private var showYandexGuide = false
+    @State private var isTestingVoice = false
+    @State private var voiceTestResult: String?
 
     // Уведомления
     @AppStorage(AppSettings.Key.morningDigest) private var morningDigest = false
@@ -86,29 +93,119 @@ struct SettingsView: View {
 
     // MARK: - Голос
 
+    private var greeting: String {
+        "Привет! Я \(AppSettings.assistantName). Расскажи, что у тебя в голове, — я всё разложу и напомню."
+    }
+
+    @ViewBuilder
     private var voiceSection: some View {
         Section {
             Toggle("Отвечать голосом", isOn: $voiceEnabled)
 
             if voiceEnabled {
-                Picker("Голос", selection: $voiceIdentifier) {
-                    Text("Лучший доступный").tag("")
-                    ForEach(voices, id: \.identifier) { voice in
-                        Text(VoiceService.displayName(of: voice)).tag(voice.identifier)
+                Picker("Чей голос", selection: $voiceEngine) {
+                    ForEach(VoiceEngine.allCases) { engine in
+                        Text(engine.title).tag(engine.rawValue)
                     }
                 }
+                .pickerStyle(.segmented)
 
-                Button {
-                    VoiceService.shared.speak("Привет! Я \(AppSettings.assistantName). Расскажи, что у тебя в голове, — я всё разложу и напомню.", force: true)
-                } label: {
-                    Label("Послушать", systemImage: "play.circle")
+                if voiceEngine == VoiceEngine.apple.rawValue {
+                    Picker("Голос", selection: $voiceIdentifier) {
+                        Text("Лучший доступный").tag("")
+                        ForEach(voices, id: \.identifier) { voice in
+                            Text(VoiceService.displayName(of: voice)).tag(voice.identifier)
+                        }
+                    }
+
+                    Button {
+                        VoiceService.shared.speak(greeting, force: true)
+                    } label: {
+                        Label("Послушать", systemImage: "play.circle")
+                    }
+                } else {
+                    Picker("Голос", selection: $yandexVoice) {
+                        ForEach(YandexSpeech.Voice.allCases) { voice in
+                            Text(voice.title).tag(voice.rawValue)
+                        }
+                    }
+
+                    Button {
+                        Task { await testYandexVoice() }
+                    } label: {
+                        if isTestingVoice {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Готовлю голос…")
+                            }
+                        } else {
+                            Label("Послушать", systemImage: "play.circle")
+                        }
+                    }
+                    .disabled(!hasYandexKey || isTestingVoice)
                 }
             }
         } header: {
             Text("Голос")
         } footer: {
-            Text("Голос встроен в iPhone: бесплатно и без интернета. Чтобы звучало живее, скачай улучшенный русский голос: Настройки iPhone → Универсальный доступ → Устный контент → Голоса → Русский.")
+            if let voiceTestResult {
+                Text(voiceTestResult)
+                    .foregroundStyle(Theme.recording)
+            } else if voiceEngine == VoiceEngine.yandex.rawValue {
+                Text("Живой нейросетевой голос Яндекса: звучит как человек. Платно — примерно 0,2 ₽ за ответ, оплата российской картой. Если ключа нет или Яндекс не ответил, я скажу голосом Apple.")
+            } else {
+                Text("Голос встроен в iPhone: бесплатно и без интернета. Чтобы звучало живее, скачай улучшенный русский голос: Настройки iPhone → Универсальный доступ → Устный контент → Голоса → Русский.")
+            }
         }
+
+        if voiceEnabled && voiceEngine == VoiceEngine.yandex.rawValue {
+            Section {
+                SecureField("Вставь API-ключ Яндекса", text: $yandexKey)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.body.monospaced())
+
+                Button("Сохранить ключ") {
+                    YandexSpeech.saveKey(yandexKey)
+                    yandexKey = ""
+                    hasYandexKey = true
+                    voiceTestResult = nil
+                }
+                .disabled(yandexKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button {
+                    showYandexGuide = true
+                } label: {
+                    Label("Как получить ключ", systemImage: "questionmark.circle")
+                }
+
+                if hasYandexKey {
+                    Button("Удалить ключ Яндекса", role: .destructive) {
+                        YandexSpeech.deleteKey()
+                        hasYandexKey = false
+                    }
+                }
+            } header: {
+                Text("Живой голос · ключ Яндекса")
+            } footer: {
+                Text(hasYandexKey
+                     ? "Ключ сохранён. Нажми «Послушать», чтобы проверить голос."
+                     : "Ключ хранится только в защищённом хранилище этого iPhone.")
+            }
+            .sheet(isPresented: $showYandexGuide) {
+                YandexGuideView()
+            }
+        }
+    }
+
+    private func testYandexVoice() async {
+        isTestingVoice = true
+        voiceTestResult = nil
+        await VoiceService.shared.testYandex(greeting)
+        if let error = VoiceService.shared.lastYandexError {
+            voiceTestResult = error
+        }
+        isTestingVoice = false
     }
 
     // MARK: - Уведомления

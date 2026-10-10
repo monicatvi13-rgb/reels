@@ -2,8 +2,10 @@ import Foundation
 import AVFoundation
 import Observation
 
-/// Голос приложения: встроенная озвучка iPhone.
-/// Бесплатно, без интернета и одинаково работает с любой нейросетью.
+/// Голос приложения. Два варианта:
+/// - Apple — встроенная озвучка iPhone: бесплатно и без интернета;
+/// - «живой» — нейросетевой голос Яндекса, если подключён ключ.
+/// Если Яндекс недоступен, приложение тут же говорит голосом Apple.
 @MainActor
 @Observable
 final class VoiceService: NSObject {
@@ -12,6 +14,8 @@ final class VoiceService: NSObject {
     private(set) var isSpeaking = false
 
     private let synthesizer = AVSpeechSynthesizer()
+    private var player: AVAudioPlayer?
+    private var speakTask: Task<Void, Never>?
 
     override private init() {
         super.init()
@@ -43,8 +47,75 @@ final class VoiceService: NSObject {
         guard !SpeechRecognizer.isAnyRecording else { return }
 
         stop()
+
+        if AppSettings.voiceEngine == .yandex, let key = YandexSpeech.apiKey {
+            isSpeaking = true
+            let voice = AppSettings.yandexVoice
+            speakTask = Task { [weak self] in
+                do {
+                    let audio = try await YandexSpeech.synthesize(clean, voice: voice, apiKey: key)
+                    guard !Task.isCancelled else { return }
+                    self?.play(audio)
+                } catch {
+                    // Яндекс не ответил — не молчим, говорим голосом Apple.
+                    guard !Task.isCancelled else { return }
+                    self?.speakWithApple(clean)
+                }
+            }
+        } else {
+            speakWithApple(clean)
+        }
+    }
+
+    /// Последняя ошибка «живого» голоса — показывается в настройках при проверке.
+    private(set) var lastYandexError: String?
+
+    /// Проверка «живого» голоса из настроек: говорит фразу и запоминает ошибку, если она была.
+    func testYandex(_ text: String) async {
+        stop()
+        lastYandexError = nil
+        guard let key = YandexSpeech.apiKey else {
+            lastYandexError = "Сначала сохрани ключ Яндекса."
+            return
+        }
+        isSpeaking = true
+        do {
+            let audio = try await YandexSpeech.synthesize(text, voice: AppSettings.yandexVoice, apiKey: key)
+            play(audio)
+        } catch {
+            isSpeaking = false
+            lastYandexError = error.localizedDescription
+        }
+    }
+
+    private func activatePlayback() {
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: .duckOthers)
         try? AVAudioSession.sharedInstance().setActive(true)
+    }
+
+    private func play(_ audio: Data) {
+        guard !SpeechRecognizer.isAnyRecording else {
+            isSpeaking = false
+            return
+        }
+        activatePlayback()
+        do {
+            let player = try AVAudioPlayer(data: audio)
+            player.delegate = self
+            self.player = player
+            isSpeaking = true
+            player.play()
+        } catch {
+            isSpeaking = false
+        }
+    }
+
+    private func speakWithApple(_ clean: String) {
+        guard !SpeechRecognizer.isAnyRecording else {
+            isSpeaking = false
+            return
+        }
+        activatePlayback()
 
         let utterance = AVSpeechUtterance(string: clean)
         utterance.voice = Self.selectedVoice
@@ -57,6 +128,10 @@ final class VoiceService: NSObject {
     }
 
     func stop() {
+        speakTask?.cancel()
+        speakTask = nil
+        player?.stop()
+        player = nil
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
         }
@@ -73,7 +148,8 @@ final class VoiceService: NSObject {
 
     private func finished() {
         // Отмена старой фразы не должна обрывать новую.
-        guard !synthesizer.isSpeaking else { return }
+        guard !synthesizer.isSpeaking, !(player?.isPlaying ?? false) else { return }
+        player = nil
         isSpeaking = false
         // Микрофон уже включён — звук не выключаем, иначе запись оборвётся.
         guard !SpeechRecognizer.isAnyRecording else { return }
@@ -87,6 +163,16 @@ extension VoiceService: AVSpeechSynthesizerDelegate {
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        Task { @MainActor in VoiceService.shared.finished() }
+    }
+}
+
+extension VoiceService: AVAudioPlayerDelegate {
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in VoiceService.shared.finished() }
+    }
+
+    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         Task { @MainActor in VoiceService.shared.finished() }
     }
 }

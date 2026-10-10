@@ -12,6 +12,17 @@ enum AppSettings {
         static let calendarMode = "calendarMode"
         static let assistantName = "assistantName"
         static let assistantStyle = "assistantStyle"
+        static let voiceEngine = "voiceEngine"
+        static let yandexVoice = "yandexVoice"
+    }
+
+    /// Каким голосом говорить.
+    static var voiceEngine: VoiceEngine {
+        VoiceEngine(rawValue: defaults.string(forKey: Key.voiceEngine) ?? "") ?? .apple
+    }
+
+    static var yandexVoice: YandexSpeech.Voice {
+        YandexSpeech.Voice(rawValue: defaults.string(forKey: Key.yandexVoice) ?? "") ?? .alena
     }
 
     static let defaultAssistantName = "Джарвис"
@@ -91,6 +102,21 @@ enum AssistantStyle: String, CaseIterable, Identifiable {
             "Ты деловой и чёткий: отвечаешь по существу, без лишних слов, как опытный ассистент руководителя."
         case .humor:
             "Ты с лёгким юмором и иронией, как Джарвис из фильмов: остроумно, но по делу и никогда не обидно."
+        }
+    }
+}
+
+/// Чей голос у помощника.
+enum VoiceEngine: String, CaseIterable, Identifiable {
+    case apple
+    case yandex
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .apple: "Apple · бесплатно"
+        case .yandex: "Живой · Яндекс"
         }
     }
 }

@@ -12,17 +12,12 @@ enum AppSettings {
         static let calendarMode = "calendarMode"
         static let assistantName = "assistantName"
         static let assistantStyle = "assistantStyle"
-        static let voiceEngine = "voiceEngine"
-        static let yandexVoice = "yandexVoice"
+        static let speechPace = "speechPace"
     }
 
-    /// Каким голосом говорить.
-    static var voiceEngine: VoiceEngine {
-        VoiceEngine(rawValue: defaults.string(forKey: Key.voiceEngine) ?? "") ?? .apple
-    }
-
-    static var yandexVoice: YandexSpeech.Voice {
-        YandexSpeech.Voice(rawValue: defaults.string(forKey: Key.yandexVoice) ?? "") ?? .alena
+    /// Темп речи помощника.
+    static var speechPace: SpeechPace {
+        SpeechPace(rawValue: defaults.string(forKey: Key.speechPace) ?? "") ?? .calm
     }
 
     static let defaultAssistantName = "Джарвис"
@@ -106,17 +101,28 @@ enum AssistantStyle: String, CaseIterable, Identifiable {
     }
 }
 
-/// Чей голос у помощника.
-enum VoiceEngine: String, CaseIterable, Identifiable {
-    case apple
-    case yandex
+/// Темп речи: спокойный звучит живее всего.
+enum SpeechPace: String, CaseIterable, Identifiable {
+    case calm
+    case normal
+    case fast
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .apple: "Apple · бесплатно"
-        case .yandex: "Живой · Яндекс"
+        case .calm: "Спокойный"
+        case .normal: "Обычный"
+        case .fast: "Быстрый"
+        }
+    }
+
+    /// Скорость для голоса Apple (обычная — 0,5).
+    var rate: Float {
+        switch self {
+        case .calm: 0.46
+        case .normal: 0.5
+        case .fast: 0.55
         }
     }
 }

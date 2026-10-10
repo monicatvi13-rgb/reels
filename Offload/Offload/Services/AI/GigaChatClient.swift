@@ -133,6 +133,8 @@ final class RussianTrustDelegate: NSObject, URLSessionDelegate, @unchecked Senda
 
     /// Последняя причина, по которой проверка безопасности не пропустила сервер.
     static var lastTrustFailure: String?
+    /// Доходило ли дело до нашей проверки сертификата и чем она закончилась.
+    static var lastTrustStage = "не вызывалась"
 
     /// Понятный отчёт: какие сертификаты прочитаны и что ответила проверка.
     static func diagnostics(for error: URLError) -> String {
@@ -143,7 +145,15 @@ final class RussianTrustDelegate: NSObject, URLSessionDelegate, @unchecked Senda
             "сертификатов прочитано: \(loadedCertificates.count)\(names.isEmpty ? "" : " (\(names))")",
             "ошибка сети: \(error.code.rawValue)"
         ]
-        if let lastTrustFailure { parts.append("проверка: \(lastTrustFailure)") }
+        parts.append("наша проверка: \(lastTrustStage)")
+        if let lastTrustFailure { parts.append("причина: \(lastTrustFailure)") }
+        // Код защищённого соединения (например, -9802, -9807, -9813) точно указывает на причину.
+        if let streamCode = (error as NSError).userInfo["_kCFStreamErrorCodeKey"] {
+            parts.append("код TLS: \(streamCode)")
+        }
+        if let underlying = (error as NSError).userInfo[NSUnderlyingErrorKey] as? NSError {
+            parts.append("вложенная ошибка: \(underlying.domain) \(underlying.code)")
+        }
         return parts.joined(separator: "; ")
     }
 
@@ -156,6 +166,7 @@ final class RussianTrustDelegate: NSObject, URLSessionDelegate, @unchecked Senda
               !certificates.isEmpty else {
             return (.performDefaultHandling, nil)
         }
+        Self.lastTrustStage = "вызвана"
 
         SecTrustSetAnchorCertificates(trust, certificates as CFArray)
         SecTrustSetAnchorCertificatesOnly(trust, false)
@@ -163,8 +174,10 @@ final class RussianTrustDelegate: NSObject, URLSessionDelegate, @unchecked Senda
         var trustError: CFError?
         if SecTrustEvaluateWithError(trust, &trustError) {
             Self.lastTrustFailure = nil
+            Self.lastTrustStage = "сервер принят"
             return (.useCredential, URLCredential(trust: trust))
         }
+        Self.lastTrustStage = "сервер отклонён"
         Self.lastTrustFailure = (trustError as Error?)?.localizedDescription ?? "сервер не прошёл проверку"
         return (.cancelAuthenticationChallenge, nil)
     }

@@ -13,6 +13,23 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>sberbank.ru</key>
+			<dict>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.2</string>
+				<key>NSExceptionRequiresForwardSecrecy</key>
+				<false/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSRequiresCertificateTransparency</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Offload добавляет дела с датой в твой Календарь и обновляет их, если ты что-то поменяешь.</string>
 	<key>NSCalendarsUsageDescription</key>

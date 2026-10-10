@@ -41,6 +41,7 @@ struct SettingsView: View {
             Form {
                 assistantSection
                 voiceSection
+                studioSection
                 notificationsSection
                 calendarSection
                 aiSection
@@ -141,6 +142,20 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 4)
             }
+        }
+    }
+
+    // MARK: - Студия голоса
+
+    private var studioSection: some View {
+        Section {
+            NavigationLink {
+                VoiceStudioView()
+            } label: {
+                Label("Студия голоса", systemImage: "waveform.badge.mic")
+            }
+        } footer: {
+            Text("Запиши свой голос, чтобы научить нейросеть говорить как ты.")
         }
     }
 

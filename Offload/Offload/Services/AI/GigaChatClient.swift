@@ -127,9 +127,9 @@ enum GigaChatNetwork {
 final class RussianTrustDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
     private let certificates: [SecCertificate] = RussianTrustDelegate.loadedCertificates
 
-    /// Сертификаты, которые удалось прочитать из приложения.
-    static let loadedCertificates: [SecCertificate] = ["russian_trusted_root_ca", "russian_trusted_sub_ca"]
-        .compactMap(RussianTrustDelegate.loadCertificate(named:))
+    /// Сертификаты Минцифры: встроенные в код плюс файлы в приложении, если они есть.
+    static let loadedCertificates: [SecCertificate] = RussianCertificates.all
+        + ["russian_trusted_root_ca", "russian_trusted_sub_ca"].flatMap(RussianTrustDelegate.loadCertificates(named:))
 
     /// Последняя причина, по которой проверка безопасности не пропустила сервер.
     static var lastTrustFailure: String?
@@ -169,26 +169,26 @@ final class RussianTrustDelegate: NSObject, URLSessionDelegate, @unchecked Senda
         return (.cancelAuthenticationChallenge, nil)
     }
 
-    private static func loadCertificate(named name: String) -> SecCertificate? {
+    /// Читает файл сертификата. В одном файле может быть несколько сертификатов подряд —
+    /// так их и раздают Госуслуги — поэтому достаём каждый.
+    private static func loadCertificates(named name: String) -> [SecCertificate] {
         for ext in ["cer", "crt", "pem", "der"] {
             guard let url = Bundle.main.url(forResource: name, withExtension: ext),
                   let raw = try? Data(contentsOf: url) else { continue }
             if let certificate = SecCertificateCreateWithData(nil, raw as CFData) {
-                return certificate
+                return [certificate]
             }
-            // Файл в текстовом формате PEM — достаём из него двоичные данные.
-            if let text = String(data: raw, encoding: .utf8) {
-                let base64 = text
-                    .components(separatedBy: .newlines)
-                    .filter { !$0.hasPrefix("-----") }
-                    .joined()
-                if let der = Data(base64Encoded: base64),
-                   let certificate = SecCertificateCreateWithData(nil, der as CFData) {
-                    return certificate
+            guard let text = String(data: raw, encoding: .utf8) else { continue }
+            return text
+                .components(separatedBy: "-----BEGIN CERTIFICATE-----")
+                .dropFirst()
+                .compactMap { block in
+                    let body = block.components(separatedBy: "-----END CERTIFICATE-----").first ?? ""
+                    let base64 = body.components(separatedBy: .whitespacesAndNewlines).joined()
+                    return Data(base64Encoded: base64).flatMap { SecCertificateCreateWithData(nil, $0 as CFData) }
                 }
-            }
         }
-        return nil
+        return []
     }
 }
 
